@@ -1,0 +1,41 @@
+CONQUIZ UNITY SETUP CHECKLIST
+==============================
+
+AUTOMATED (ALREADY DONE):
+✓ Folder structure created
+✓ SafeArea.cs script created
+
+MANUAL STEPS IN UNITY EDITOR:
+==============================
+
+1. PACKAGES
+   [ ] Window → TextMeshPro → Import TMP Essential Resources
+   [ ] Verify Universal RP is installed (Package Manager)
+
+2. SCENES
+   [ ] Create BootScene in Assets/_Project/Scenes/
+   [ ] Create MenuScene in Assets/_Project/Scenes/
+   [ ] Create GameScene in Assets/_Project/Scenes/
+   [ ] Add all 3 to Build Settings (File → Build Settings)
+
+3. PROJECT SETTINGS
+   [ ] Switch platform to Android (File → Build Settings)
+   [ ] Player Settings → Default Orientation: Auto Rotation (all 4 enabled)
+   [ ] Player Settings → API Compatibility: .NET Standard 2.1
+   [ ] Graphics → Assign UniversalRenderPipelineAsset
+   [ ] Quality → Assign URP asset to all quality levels
+
+4. CANVAS SETUP (MenuScene & GameScene)
+   [ ] Create Canvas → Render Mode: Screen Space - Camera
+   [ ] Assign Main Camera to Render Camera
+   [ ] Canvas Scaler: Scale With Screen Size, 1080x1920, Match 0.5
+   [ ] Add Panel child → Rename "SafeAreaPanel"
+   [ ] Attach SafeArea.cs to SafeAreaPanel
+   [ ] Set SafeAreaPanel anchors to Stretch/Stretch
+
+5. VERIFY
+   [ ] Play each scene - no errors
+   [ ] Game view - test different aspect ratios
+   [ ] SafeAreaPanel adapts correctly
+
+NEXT: Open UNITY_SETUP_STEPS.md for detailed instructions
