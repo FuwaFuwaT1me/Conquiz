@@ -231,20 +231,15 @@ namespace Conquiz.Quiz
 
             Debug.Log($"P2 Numeric: {p2NumericAnswer}");
 
-            // Show both results
-            string p1NumText = FormatNumericAnswer(p1NumericAnswer, numericQuestion);
-            string p2NumText = FormatNumericAnswer(p2NumericAnswer, numericQuestion);
-            string numOutcome = GetNumericOutcomeText(p1NumericAnswer, p2NumericAnswer, numericQuestion);
-
+            // Show numeric reveal animation
             if (quizUI != null)
             {
-                quizUI.ShowRoundResults(
-                    p1NumText, p1NumericAnswer.IsCorrect,
-                    p2NumText, p2NumericAnswer.IsCorrect,
-                    numOutcome);
+                yield return quizUI.ShowNumericRevealCoroutine(
+                    p1NumericAnswer,
+                    p2NumericAnswer,
+                    numericQuestion.CorrectValue
+                );
             }
-
-            yield return new WaitForSeconds(resultDisplayTime);
 
             // Evaluate Round 2
             var round2Result = EvaluateNumericRound(

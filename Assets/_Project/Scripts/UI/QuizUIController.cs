@@ -299,7 +299,8 @@ namespace Conquiz.UI
                 numericCanvasGroup = numericPanel.AddComponent<CanvasGroup>();
 
             RectTransform numericRect = numericPanel.GetComponent<RectTransform>();
-            Vector2 startPos = new Vector2(Screen.width, 0f);
+            float slideDistance = numericRect != null ? numericRect.rect.width : 800f;
+            Vector2 startPos = new Vector2(slideDistance, 0f);
             Vector2 endPos = Vector2.zero;
 
             float slideDuration = 0.5f;
@@ -546,6 +547,74 @@ namespace Conquiz.UI
             yield return new WaitForSeconds(0.5f);
 
             // Total time: ~1.5s
+        }
+
+        /// <summary>
+        /// Shows numeric answer reveal with result cards and badge updates.
+        /// </summary>
+        public IEnumerator ShowNumericRevealCoroutine(
+            QuizAnswerResult playerAnswer,
+            QuizAnswerResult opponentAnswer,
+            float correctValue)
+        {
+            // Phase 1: Lock inputs (0.3s)
+            if (numericInputField != null)
+                numericInputField.interactable = false;
+            if (numericSubmitButton != null)
+                numericSubmitButton.interactable = false;
+
+            yield return new WaitForSeconds(0.3f);
+
+            // Phase 2: Show result cards (1.0s)
+            string p1Text = playerAnswer.TimedOut
+                ? "Timed Out!"
+                : $"{playerAnswer.NumericValue:F1} (off by {playerAnswer.NumericDistance:F1})";
+            string p2Text = opponentAnswer.TimedOut
+                ? "Timed Out!"
+                : $"{opponentAnswer.NumericValue:F1} (off by {opponentAnswer.NumericDistance:F1})";
+            string outcome = DetermineNumericOutcome(playerAnswer, opponentAnswer);
+
+            ShowRoundResults(p1Text, playerAnswer.IsCorrect, p2Text, opponentAnswer.IsCorrect, outcome);
+
+            yield return new WaitForSeconds(1.0f);
+
+            // Phase 3: Update status badges
+            bool playerWon = DetermineNumericWinner(playerAnswer, opponentAnswer);
+
+            if (playerBadgeLeft != null)
+                playerBadgeLeft.SetState(playerWon ? BadgeState.ResultCorrect : BadgeState.ResultWrong);
+
+            if (playerBadgeRight != null)
+                playerBadgeRight.SetState(playerWon ? BadgeState.ResultWrong : BadgeState.ResultCorrect);
+
+            yield return new WaitForSeconds(0.5f);
+        }
+
+        private string DetermineNumericOutcome(QuizAnswerResult player, QuizAnswerResult opponent)
+        {
+            if (player.TimedOut && opponent.TimedOut)
+                return "Both timed out!";
+            if (player.TimedOut)
+                return "You timed out - OPPONENT WINS!";
+            if (opponent.TimedOut)
+                return "Opponent timed out - YOU WIN!";
+
+            if (player.NumericDistance < opponent.NumericDistance)
+                return "YOU WIN! Closer answer!";
+            if (opponent.NumericDistance < player.NumericDistance)
+                return "OPPONENT WINS! Closer answer!";
+            if (player.ResponseTimeSeconds < opponent.ResponseTimeSeconds)
+                return "YOU WIN! Same distance, faster time!";
+            return "OPPONENT WINS! Same distance, faster time!";
+        }
+
+        private bool DetermineNumericWinner(QuizAnswerResult player, QuizAnswerResult opponent)
+        {
+            if (player.TimedOut) return false;
+            if (opponent.TimedOut) return true;
+            if (player.NumericDistance < opponent.NumericDistance) return true;
+            if (opponent.NumericDistance < player.NumericDistance) return false;
+            return player.ResponseTimeSeconds <= opponent.ResponseTimeSeconds;
         }
 
         // =====================================================================
