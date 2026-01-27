@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "mcp__UnityMCP__manage_scene",
+      "mcp__UnityMCP__manage_asset",
+      "mcp__UnityMCP__read_console",
+      "mcp__UnityMCP__batch_execute",
+      "mcp__UnityMCP__manage_components",
+      "mcp__UnityMCP__manage_gameobject",
+      "mcp__UnityMCP__create_script",
+      "mcp__UnityMCP__refresh_unity",
+      "mcp__UnityMCP__manage_editor",
+      "mcp__UnityMCP__find_gameobjects",
+      "mcp__UnityMCP__manage_scriptable_object",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd QuizPanel modernization design document\n\nDesign validated for beautiful modern UI with:\n- Single-question layout with player status badges\n- 2x2 MCQ button grid\n- Real-time answer tracking for both players\n- Color-coded reveal with player labels\n- Smooth animated round transitions\n- Gradient glassmorphism aesthetic\n- Dart-board visualization planned for post-MVP\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git check-ignore:*)",
+      "Bash(git commit:*)",
+      "Bash(git worktree add:*)",
+      "mcp__UnityMCP__manage_prefabs"
+    ]
+  }
+}

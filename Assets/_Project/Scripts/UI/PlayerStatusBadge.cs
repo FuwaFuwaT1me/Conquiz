@@ -35,6 +35,18 @@ namespace Conquiz.UI
         [SerializeField] private Color correctColor = new Color(0.06f, 0.72f, 0.51f);
         [SerializeField] private Color wrongColor = new Color(0.94f, 0.27f, 0.27f);
 
+        [Header("Timer Thresholds")]
+        [SerializeField] private float timerMidThreshold = 0.5f;
+        [SerializeField] private float timerLowThreshold = 0.25f;
+
+        [Header("Visual Settings")]
+        [SerializeField] private float thinkingBackgroundAlpha = 0.1f;
+
+        [Header("Status Symbols")]
+        [SerializeField] private string answeredSymbol = "✓";
+        [SerializeField] private string correctSymbol = "✓";
+        [SerializeField] private string wrongSymbol = "✗";
+
         private BadgeState currentState = BadgeState.Hidden;
 
         void Awake()
@@ -75,12 +87,12 @@ namespace Conquiz.UI
                     if (statusText != null)
                         statusText.text = "Thinking...";
                     if (background != null)
-                        background.color = new Color(1f, 1f, 1f, 0.1f);
+                        background.color = new Color(1f, 1f, 1f, thinkingBackgroundAlpha);
                     break;
 
                 case BadgeState.Answered:
                     if (statusText != null)
-                        statusText.text = "Answered! ✓";
+                        statusText.text = $"Answered! {answeredSymbol}";
                     break;
 
                 case BadgeState.TimedOut:
@@ -92,14 +104,14 @@ namespace Conquiz.UI
 
                 case BadgeState.ResultCorrect:
                     if (statusText != null)
-                        statusText.text = "✓";
+                        statusText.text = correctSymbol;
                     if (background != null)
                         background.color = correctColor;
                     break;
 
                 case BadgeState.ResultWrong:
                     if (statusText != null)
-                        statusText.text = "✗";
+                        statusText.text = wrongSymbol;
                     if (background != null)
                         background.color = wrongColor;
                     break;
@@ -113,12 +125,12 @@ namespace Conquiz.UI
                 timerRing.fillAmount = normalizedTime;
 
                 // Color gradient based on time remaining
-                if (normalizedTime > 0.5f)
+                if (normalizedTime > timerMidThreshold)
                     timerRing.color = timerColorFull;
-                else if (normalizedTime > 0.25f)
-                    timerRing.color = Color.Lerp(timerColorMid, timerColorFull, (normalizedTime - 0.25f) / 0.25f);
+                else if (normalizedTime > timerLowThreshold)
+                    timerRing.color = Color.Lerp(timerColorMid, timerColorFull, (normalizedTime - timerLowThreshold) / (timerMidThreshold - timerLowThreshold));
                 else
-                    timerRing.color = Color.Lerp(timerColorLow, timerColorMid, normalizedTime / 0.25f);
+                    timerRing.color = Color.Lerp(timerColorLow, timerColorMid, normalizedTime / timerLowThreshold);
             }
         }
 

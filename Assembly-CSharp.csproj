@@ -73,6 +73,7 @@
     <Compile Include="Assets\_Project\Scripts\Quiz\QuizTester.cs" />
     <Compile Include="Assets\_Project\Scripts\Map\TerritoryStaticData.cs" />
     <Compile Include="Assets\_Project\Scripts\Quiz\QuestionData.cs" />
+    <Compile Include="Assets\_Project\Scripts\UI\PlayerStatusBadge.cs" />
     <Compile Include="Assets\_Project\Scripts\Quiz\QuizSessionTester.cs" />
     <Compile Include="Assets\_Project\Scripts\Quiz\HumanAnswerProvider.cs" />
     <Compile Include="Assets\_Project\Scripts\UI\GameHUD.cs" />

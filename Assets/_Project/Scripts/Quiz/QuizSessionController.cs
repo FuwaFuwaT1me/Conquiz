@@ -139,6 +139,10 @@ namespace Conquiz.Quiz
             {
                 p2McqAnswer = result;
                 p2Done = true;
+
+                // Mark opponent as answered in UI
+                if (quizUI != null)
+                    quizUI.MarkOpponentAnswered();
             });
 
             while (!p2Done)
@@ -148,20 +152,17 @@ namespace Conquiz.Quiz
 
             Debug.Log($"P2 MCQ: {p2McqAnswer}");
 
-            // Show both results
-            string p1McqText = FormatMcqAnswer(p1McqAnswer, mcqQuestion);
-            string p2McqText = FormatMcqAnswer(p2McqAnswer, mcqQuestion);
-            string mcqOutcome = GetMcqOutcomeText(p1McqAnswer, p2McqAnswer);
-
+            // Show reveal animation
             if (quizUI != null)
             {
-                quizUI.ShowRoundResults(
-                    p1McqText, p1McqAnswer.IsCorrect,
-                    p2McqText, p2McqAnswer.IsCorrect,
-                    mcqOutcome);
+                yield return quizUI.ShowMcqRevealCoroutine(
+                    mcqQuestion.CorrectIndex,
+                    p1McqAnswer.TimedOut ? -1 : p1McqAnswer.McqChoiceIndex,
+                    p2McqAnswer.TimedOut ? -1 : p2McqAnswer.McqChoiceIndex,
+                    p1McqAnswer.IsCorrect,
+                    p2McqAnswer.IsCorrect
+                );
             }
-
-            yield return new WaitForSeconds(resultDisplayTime);
 
             // Evaluate Round 1
             var round1Result = EvaluateMcqRound(p1McqAnswer, p2McqAnswer);
@@ -180,6 +181,12 @@ namespace Conquiz.Quiz
                 var noWinnerResult = SessionResult.CreateNoWinner(p1McqAnswer, p2McqAnswer);
                 CompleteSession(noWinnerResult);
                 yield break;
+            }
+
+            // --- TRANSITION TO ROUND 2 ---
+            if (quizUI != null)
+            {
+                yield return quizUI.TransitionToRound2Coroutine(numericQuestion, numericTimeLimit);
             }
 
             // --- ROUND 2: NUMERIC ---
@@ -211,6 +218,10 @@ namespace Conquiz.Quiz
             {
                 p2NumericAnswer = result;
                 p2NumericDone = true;
+
+                // Mark opponent as answered
+                if (quizUI != null)
+                    quizUI.MarkOpponentAnswered();
             });
 
             while (!p2NumericDone)

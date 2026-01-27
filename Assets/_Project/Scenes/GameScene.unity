@@ -2501,6 +2501,54 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1298058916}
   m_CullTransparentMesh: 1
+--- !u!1 &1395530602
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1395530603}
+  - component: {fileID: 1395530604}
+  m_Layer: 0
+  m_Name: PlayerBadgeLeft
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1395530603
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1395530602}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -9756.715}
+  m_LocalScale: {x: 108.40794, y: 108.40794, z: 108.40794}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1906457472}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 20, y: -20}
+  m_SizeDelta: {x: 100, y: 80}
+  m_Pivot: {x: 0, y: 1}
+--- !u!225 &1395530604
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1395530602}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1450544008
 GameObject:
   m_ObjectHideFlags: 0
@@ -4284,6 +4332,7 @@ RectTransform:
   - {fileID: 1787967003}
   - {fileID: 2051666616}
   - {fileID: 882766303}
+  - {fileID: 1395530603}
   m_Father: {fileID: 372226776}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -4306,8 +4355,10 @@ MonoBehaviour:
   quizPanel: {fileID: 1906457471}
   mcqPanel: {fileID: 1787967002}
   numericPanel: {fileID: 2051666615}
+  resultsPanel: {fileID: 0}
   questionText: {fileID: 175898318}
   categoryText: {fileID: 475100000}
+  roundIndicatorText: {fileID: 0}
   timerText: {fileID: 1563735100}
   timerFillImage: {fileID: 0}
   defaultTimeLimit: 15
@@ -4321,16 +4372,24 @@ MonoBehaviour:
   - {fileID: 135489524}
   - {fileID: 1824560489}
   - {fileID: 1520527710}
+  mcqButtonImages:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   numericInputField: {fileID: 1103535138}
   numericSubmitButton: {fileID: 2032872576}
   unitText: {fileID: 1593137448}
   rangeHintText: {fileID: 1690633602}
-  feedbackPanel: {fileID: 882766302}
-  feedbackText: {fileID: 222182041}
-  normalButtonColor: {r: 1, g: 1, b: 1, a: 1}
-  correctButtonColor: {r: 0, g: 1, b: 0, a: 1}
-  incorrectButtonColor: {r: 1, g: 0, b: 0, a: 1}
-  timerWarningColor: {r: 1, g: 0, b: 0, a: 1}
+  playerResultText: {fileID: 0}
+  opponentResultText: {fileID: 0}
+  roundOutcomeText: {fileID: 0}
+  primaryColor: {r: 0.2, g: 0.6, b: 1, a: 1}
+  accentColor: {r: 0.4, g: 0.8, b: 0.4, a: 1}
+  correctColor: {r: 0.3, g: 0.85, b: 0.4, a: 1}
+  incorrectColor: {r: 1, g: 0.4, b: 0.4, a: 1}
+  warningColor: {r: 1, g: 0.6, b: 0.2, a: 1}
+  neutralColor: {r: 0.3, g: 0.35, b: 0.45, a: 1}
 --- !u!114 &1906457474
 MonoBehaviour:
   m_ObjectHideFlags: 0

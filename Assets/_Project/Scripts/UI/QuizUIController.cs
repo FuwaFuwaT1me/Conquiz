@@ -31,6 +31,13 @@ namespace Conquiz.UI
         [SerializeField] private GameObject numericPanel;
         [SerializeField] private GameObject resultsPanel;
 
+        [Header("Player Status Badges")]
+        [SerializeField] private PlayerStatusBadge playerBadgeLeft;
+        [SerializeField] private PlayerStatusBadge playerBadgeRight;
+
+        [Header("Reveal Elements")]
+        [SerializeField] private GameObject playerLabelPrefab; // Small chip prefab for "YOU"/"OPPONENT"
+
         [Header("Question Display")]
         [SerializeField] private TextMeshProUGUI questionText;
         [SerializeField] private TextMeshProUGUI categoryText;
@@ -101,6 +108,13 @@ namespace Conquiz.UI
                 numericInputField.onSubmit.AddListener(_ => OnNumericSubmitClicked());
             }
 
+            // Initialize player status badges
+            if (playerBadgeLeft != null)
+                playerBadgeLeft.Initialize("YOU", new Color(0.08f, 0.72f, 0.65f)); // Teal
+
+            if (playerBadgeRight != null)
+                playerBadgeRight.Initialize("OPPONENT", new Color(0.98f, 0.45f, 0.09f)); // Orange
+
             HideQuiz();
         }
 
@@ -142,6 +156,9 @@ namespace Conquiz.UI
         {
             if (question == null) return;
 
+            // ADD THIS:
+            ClearPlayerLabels();
+
             currentQuestion = question;
             hasAnswered = false;
 
@@ -165,6 +182,13 @@ namespace Conquiz.UI
                     SetButtonStyle(mcqButtons[i], mcqButtonImages[i], neutralColor, Color.white);
                 }
             }
+
+            // Show status badges
+            if (playerBadgeLeft != null)
+                playerBadgeLeft.SetState(BadgeState.Thinking);
+
+            if (playerBadgeRight != null)
+                playerBadgeRight.SetState(BadgeState.Thinking);
 
             ShowPanel(mcqPanel, true);
             ShowPanel(numericPanel, false);
@@ -210,12 +234,162 @@ namespace Conquiz.UI
             if (numericSubmitButton != null)
                 numericSubmitButton.interactable = true;
 
+            // Reset status badges
+            if (playerBadgeLeft != null)
+                playerBadgeLeft.SetState(BadgeState.Thinking);
+
+            if (playerBadgeRight != null)
+                playerBadgeRight.SetState(BadgeState.Thinking);
+
             ShowPanel(mcqPanel, false);
             ShowPanel(numericPanel, true);
             ShowPanel(resultsPanel, false);
             ShowPanel(quizPanel, true);
 
             StartTimer(customTimeLimit > 0f ? customTimeLimit : defaultTimeLimit);
+        }
+
+        /// <summary>
+        /// Animates transition from Round 1 (MCQ) to Round 2 (Numeric).
+        /// Total duration: ~1.2-1.5 seconds.
+        /// </summary>
+        public IEnumerator TransitionToRound2Coroutine(NumericQuestionData numericQuestion, float customTimeLimit = 0f)
+        {
+            if (numericQuestion == null) yield break;
+
+            // Phase 1: Fade Out (0.4s)
+            float fadeOutDuration = 0.4f;
+            float elapsed = 0f;
+
+            CanvasGroup mcqCanvasGroup = mcqPanel.GetComponent<CanvasGroup>();
+            if (mcqCanvasGroup == null)
+                mcqCanvasGroup = mcqPanel.AddComponent<CanvasGroup>();
+
+            CanvasGroup questionCanvasGroup = questionText.GetComponent<CanvasGroup>();
+            if (questionCanvasGroup == null)
+                questionCanvasGroup = questionText.gameObject.AddComponent<CanvasGroup>();
+
+            while (elapsed < fadeOutDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = elapsed / fadeOutDuration;
+                float easedT = 1f - Mathf.Pow(1f - t, 3f); // ease-out-cubic
+
+                mcqCanvasGroup.alpha = 1f - easedT;
+                questionCanvasGroup.alpha = 1f - easedT;
+
+                // Scale down slightly
+                mcqPanel.transform.localScale = Vector3.one * (1f - easedT * 0.05f);
+
+                yield return null;
+            }
+
+            mcqCanvasGroup.alpha = 0f;
+            questionCanvasGroup.alpha = 0f;
+
+            // Phase 2: Slide Transition (0.5s)
+            // Hide MCQ panel
+            ShowPanel(mcqPanel, false);
+            ClearPlayerLabels();
+
+            // Prepare numeric panel (off-screen right)
+            ShowPanel(numericPanel, true);
+            CanvasGroup numericCanvasGroup = numericPanel.GetComponent<CanvasGroup>();
+            if (numericCanvasGroup == null)
+                numericCanvasGroup = numericPanel.AddComponent<CanvasGroup>();
+
+            RectTransform numericRect = numericPanel.GetComponent<RectTransform>();
+            Vector2 startPos = new Vector2(Screen.width, 0f);
+            Vector2 endPos = Vector2.zero;
+
+            float slideDuration = 0.5f;
+            elapsed = 0f;
+
+            while (elapsed < slideDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = elapsed / slideDuration;
+                // ease-in-out-cubic
+                float easedT = t < 0.5f ? 4f * t * t * t : 1f - Mathf.Pow(-2f * t + 2f, 3f) / 2f;
+
+                if (numericRect != null)
+                    numericRect.anchoredPosition = Vector2.Lerp(startPos, endPos, easedT);
+
+                yield return null;
+            }
+
+            if (numericRect != null)
+                numericRect.anchoredPosition = endPos;
+
+            // Phase 3: Fade In (0.3s)
+            // Setup numeric question
+            currentQuestion = numericQuestion;
+            hasAnswered = false;
+
+            if (questionText != null)
+                questionText.text = numericQuestion.QuestionText;
+
+            if (categoryText != null)
+                categoryText.text = numericQuestion.Category ?? "";
+
+            if (roundIndicatorText != null)
+                roundIndicatorText.text = "Round 2: Numeric";
+
+            if (unitText != null)
+                unitText.text = numericQuestion.Unit ?? "";
+
+            if (rangeHintText != null)
+                rangeHintText.text = $"Range: {numericQuestion.AllowedRangeMin:N0} - {numericQuestion.AllowedRangeMax:N0}";
+
+            if (numericInputField != null)
+            {
+                numericInputField.text = "";
+                numericInputField.interactable = true;
+                numericInputField.contentType = numericQuestion.DecimalPlaces > 0
+                    ? TMP_InputField.ContentType.DecimalNumber
+                    : TMP_InputField.ContentType.IntegerNumber;
+            }
+
+            if (numericSubmitButton != null)
+                numericSubmitButton.interactable = true;
+
+            // Reset status badges
+            if (playerBadgeLeft != null)
+                playerBadgeLeft.Reset();
+
+            if (playerBadgeRight != null)
+                playerBadgeRight.Reset();
+
+            float fadeInDuration = 0.3f;
+            elapsed = 0f;
+
+            while (elapsed < fadeInDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = elapsed / fadeInDuration;
+                float easedT = 1f - Mathf.Pow(1f - t, 3f); // ease-out-cubic
+
+                numericCanvasGroup.alpha = easedT;
+                questionCanvasGroup.alpha = easedT;
+
+                // Scale up slightly
+                numericPanel.transform.localScale = Vector3.one * (0.95f + easedT * 0.05f);
+
+                yield return null;
+            }
+
+            numericCanvasGroup.alpha = 1f;
+            questionCanvasGroup.alpha = 1f;
+            numericPanel.transform.localScale = Vector3.one;
+
+            // Start numeric question timer
+            StartTimer(customTimeLimit > 0f ? customTimeLimit : defaultTimeLimit);
+
+            if (numericInputField != null)
+            {
+                numericInputField.Select();
+                numericInputField.ActivateInputField();
+            }
         }
 
         /// <summary>
@@ -300,6 +474,80 @@ namespace Conquiz.UI
             return Time.time - questionStartTime;
         }
 
+        /// <summary>
+        /// Updates the player badge to "Answered" state.
+        /// Called when player submits answer.
+        /// </summary>
+        public void MarkPlayerAnswered()
+        {
+            if (playerBadgeLeft != null)
+                playerBadgeLeft.SetState(BadgeState.Answered);
+        }
+
+        /// <summary>
+        /// Updates the opponent badge to "Answered" state.
+        /// Called when opponent submits answer.
+        /// </summary>
+        public void MarkOpponentAnswered()
+        {
+            if (playerBadgeRight != null)
+                playerBadgeRight.SetState(BadgeState.Answered);
+        }
+
+        /// <summary>
+        /// Shows MCQ reveal with player labels on buttons.
+        /// Highlights correct answer and shows who picked what.
+        /// </summary>
+        public IEnumerator ShowMcqRevealCoroutine(
+            int correctIndex,
+            int playerChoiceIndex,
+            int opponentChoiceIndex,
+            bool playerCorrect,
+            bool opponentCorrect)
+        {
+            // Step 1: Brief pause (0.3s)
+            yield return new WaitForSeconds(0.3f);
+
+            // Step 2: Highlight answers (0.7s)
+            for (int i = 0; i < mcqButtons.Length; i++)
+            {
+                if (mcqButtons[i] == null) continue;
+
+                mcqButtons[i].interactable = false;
+
+                // Highlight correct answer
+                if (i == correctIndex)
+                {
+                    SetButtonStyle(mcqButtons[i], mcqButtonImages[i], correctColor, Color.white);
+                }
+                // Show player's wrong answer
+                else if (i == playerChoiceIndex && !playerCorrect)
+                {
+                    SetButtonBorder(mcqButtons[i], incorrectColor, 3f);
+                    AddPlayerLabel(mcqButtons[i].transform, "YOU", incorrectColor);
+                }
+                // Show opponent's wrong answer
+                else if (i == opponentChoiceIndex && !opponentCorrect)
+                {
+                    SetButtonBorder(mcqButtons[i], warningColor, 3f);
+                    AddPlayerLabel(mcqButtons[i].transform, "OPPONENT", warningColor);
+                }
+            }
+
+            yield return new WaitForSeconds(0.5f);
+
+            // Step 3: Update status badges (0.3s)
+            if (playerBadgeLeft != null)
+                playerBadgeLeft.SetState(playerCorrect ? BadgeState.ResultCorrect : BadgeState.ResultWrong);
+
+            if (playerBadgeRight != null)
+                playerBadgeRight.SetState(opponentCorrect ? BadgeState.ResultCorrect : BadgeState.ResultWrong);
+
+            yield return new WaitForSeconds(0.5f);
+
+            // Total time: ~1.5s
+        }
+
         // =====================================================================
         // PRIVATE METHODS
         // =====================================================================
@@ -327,6 +575,14 @@ namespace Conquiz.UI
                 timerFillImage.fillAmount = timeRemaining / timeLimit;
                 timerFillImage.color = timeRemaining <= 5f ? warningColor : primaryColor;
             }
+
+            // Update badge timers
+            float normalizedTime = timeRemaining / timeLimit;
+            if (playerBadgeLeft != null && !hasAnswered)
+                playerBadgeLeft.UpdateTimer(normalizedTime);
+
+            if (playerBadgeRight != null)
+                playerBadgeRight.UpdateTimer(normalizedTime);
         }
 
         private void OnMcqButtonClicked(int index)
@@ -335,6 +591,7 @@ namespace Conquiz.UI
 
             hasAnswered = true;
             isTimerRunning = false;
+            MarkPlayerAnswered();
 
             float responseTime = GetCurrentResponseTime();
 
@@ -364,6 +621,7 @@ namespace Conquiz.UI
 
             hasAnswered = true;
             isTimerRunning = false;
+            MarkPlayerAnswered();
 
             float responseTime = GetCurrentResponseTime();
 
@@ -413,6 +671,73 @@ namespace Conquiz.UI
             if (buttonImage != null)
             {
                 buttonImage.color = bgColor;
+            }
+        }
+
+        private void SetButtonBorder(Button button, Color borderColor, float borderWidth)
+        {
+            // For MVP, we'll use the button's Outline component
+            // In Unity Editor, ensure buttons have an Outline component
+            var outline = button.GetComponent<Outline>();
+            if (outline != null)
+            {
+                outline.effectColor = borderColor;
+                outline.effectDistance = new Vector2(borderWidth, borderWidth);
+                outline.enabled = true;
+            }
+        }
+
+        private void AddPlayerLabel(Transform buttonTransform, string labelText, Color backgroundColor)
+        {
+            if (playerLabelPrefab == null) return;
+
+            GameObject label = Instantiate(playerLabelPrefab, buttonTransform);
+            label.name = $"Label_{labelText}";
+
+            // Position in top-right corner
+            RectTransform rectTransform = label.GetComponent<RectTransform>();
+            if (rectTransform != null)
+            {
+                rectTransform.anchorMin = new Vector2(1f, 1f);
+                rectTransform.anchorMax = new Vector2(1f, 1f);
+                rectTransform.pivot = new Vector2(1f, 1f);
+                rectTransform.anchoredPosition = new Vector2(-10f, -10f);
+            }
+
+            // Set label text and color
+            TextMeshProUGUI labelTextComponent = label.GetComponentInChildren<TextMeshProUGUI>();
+            if (labelTextComponent != null)
+            {
+                labelTextComponent.text = labelText;
+            }
+
+            Image labelBackground = label.GetComponent<Image>();
+            if (labelBackground != null)
+            {
+                labelBackground.color = backgroundColor;
+            }
+        }
+
+        private void ClearPlayerLabels()
+        {
+            foreach (var button in mcqButtons)
+            {
+                if (button == null) continue;
+
+                // Find and destroy any player labels
+                Transform[] children = button.GetComponentsInChildren<Transform>();
+                foreach (Transform child in children)
+                {
+                    if (child.name.StartsWith("Label_"))
+                    {
+                        Destroy(child.gameObject);
+                    }
+                }
+
+                // Disable outline
+                var outline = button.GetComponent<Outline>();
+                if (outline != null)
+                    outline.enabled = false;
             }
         }
     }

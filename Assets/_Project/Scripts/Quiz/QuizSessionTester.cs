@@ -51,9 +51,10 @@ namespace Conquiz.Quiz
             }
 
             // Subscribe to events
-            sessionController.OnMcqQuestionStarted += HandleMcqStart;
-            sessionController.OnNumericQuestionStarted += HandleNumericStart;
-            sessionController.OnPlayerAnswered += HandlePlayerAnswered;
+            // TODO: Re-enable after modernization - events removed
+            // sessionController.OnMcqQuestionStarted += HandleMcqStart;
+            // sessionController.OnNumericQuestionStarted += HandleNumericStart;
+            // sessionController.OnPlayerAnswered += HandlePlayerAnswered;
             sessionController.OnSessionComplete += HandleSessionComplete;
 
             Debug.Log("=== QUIZ SESSION TESTER ===");
@@ -66,9 +67,9 @@ namespace Conquiz.Quiz
         {
             if (sessionController != null)
             {
-                sessionController.OnMcqQuestionStarted -= HandleMcqStart;
-                sessionController.OnNumericQuestionStarted -= HandleNumericStart;
-                sessionController.OnPlayerAnswered -= HandlePlayerAnswered;
+                // sessionController.OnMcqQuestionStarted -= HandleMcqStart;
+                // sessionController.OnNumericQuestionStarted -= HandleNumericStart;
+                // sessionController.OnPlayerAnswered -= HandlePlayerAnswered;
                 sessionController.OnSessionComplete -= HandleSessionComplete;
             }
         }
@@ -188,20 +189,21 @@ namespace Conquiz.Quiz
             Debug.Log("=====================");
         }
 
-        private void HandleMcqStart(int playerId, McqQuestionData question)
-        {
-            Debug.Log($"[MCQ] Player {playerId} answering: {question.QuestionText}");
-        }
+        // TODO: Re-enable after modernization complete
+        // private void HandleMcqStart(int playerId, McqQuestionData question)
+        // {
+        //     Debug.Log($"[MCQ] Player {playerId} answering: {question.QuestionText}");
+        // }
 
-        private void HandleNumericStart(int playerId, NumericQuestionData question)
-        {
-            Debug.Log($"[NUMERIC] Player {playerId} answering: {question.QuestionText}");
-        }
+        // private void HandleNumericStart(int playerId, NumericQuestionData question)
+        // {
+        //     Debug.Log($"[NUMERIC] Player {playerId} answering: {question.QuestionText}");
+        // }
 
-        private void HandlePlayerAnswered(QuizAnswerResult result)
-        {
-            Debug.Log($"[ANSWER] {result}");
-        }
+        // private void HandlePlayerAnswered(QuizAnswerResult result)
+        // {
+        //     Debug.Log($"[ANSWER] {result}");
+        // }
 
         private void HandleSessionComplete(SessionResult result)
         {

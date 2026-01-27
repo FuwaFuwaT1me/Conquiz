@@ -98,8 +98,9 @@ namespace Conquiz.UI
 
             // Subscribe to session events
             sessionController.OnSessionComplete += HandleSessionComplete;
-            sessionController.OnMcqQuestionStarted += HandleQuestionStarted;
-            sessionController.OnNumericQuestionStarted += HandleNumericStarted;
+            // TODO: Re-enable after modernization
+            // sessionController.OnMcqQuestionStarted += HandleQuestionStarted;
+            // sessionController.OnNumericQuestionStarted += HandleNumericStarted;
         }
 
         private void SetupButtons()
@@ -125,8 +126,8 @@ namespace Conquiz.UI
             if (sessionController != null)
             {
                 sessionController.OnSessionComplete -= HandleSessionComplete;
-                sessionController.OnMcqQuestionStarted -= HandleQuestionStarted;
-                sessionController.OnNumericQuestionStarted -= HandleNumericStarted;
+                // sessionController.OnMcqQuestionStarted -= HandleQuestionStarted;
+                // sessionController.OnNumericQuestionStarted -= HandleNumericStarted;
             }
         }
 
