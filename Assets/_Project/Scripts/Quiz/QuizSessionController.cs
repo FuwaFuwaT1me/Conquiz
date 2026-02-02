@@ -8,13 +8,13 @@ namespace Conquiz.Quiz
     /// <summary>
     /// Controls a 1v1 quiz session between two players.
     /// Shows both players' answers and handles round transitions.
+    /// The result screen stays visible until Continue is clicked.
     /// </summary>
     public class QuizSessionController : MonoBehaviour
     {
         [Header("Session Settings")]
         [SerializeField] private float mcqTimeLimit = 15f;
         [SerializeField] private float numericTimeLimit = 20f;
-        [SerializeField] private float resultDisplayTime = 2f;
 
         [Header("UI Reference")]
         [SerializeField] private QuizUIController quizUI;
@@ -25,6 +25,7 @@ namespace Conquiz.Quiz
         private IAnswerProvider player1Provider;
         private IAnswerProvider player2Provider;
         private bool sessionInProgress;
+        private bool continueClicked;
 
         public bool IsSessionInProgress => sessionInProgress;
 
@@ -34,6 +35,27 @@ namespace Conquiz.Quiz
             {
                 quizUI = FindObjectOfType<QuizUIController>();
             }
+        }
+
+        void OnEnable()
+        {
+            if (quizUI != null)
+            {
+                quizUI.OnContinueClicked += HandleContinueClicked;
+            }
+        }
+
+        void OnDisable()
+        {
+            if (quizUI != null)
+            {
+                quizUI.OnContinueClicked -= HandleContinueClicked;
+            }
+        }
+
+        private void HandleContinueClicked()
+        {
+            continueClicked = true;
         }
 
         /// <summary>
@@ -99,6 +121,7 @@ namespace Conquiz.Quiz
             NumericQuestionData numericQuestion)
         {
             sessionInProgress = true;
+            continueClicked = false;
 
             Debug.Log("=== QUIZ SESSION START ===");
 
@@ -168,6 +191,8 @@ namespace Conquiz.Quiz
             var round1Result = EvaluateMcqRound(p1McqAnswer, p2McqAnswer);
             if (round1Result != null)
             {
+                // Winner determined in Round 1
+                yield return ShowFinalResultAndWait(round1Result, mcqQuestion, null);
                 CompleteSession(round1Result);
                 yield break;
             }
@@ -179,6 +204,7 @@ namespace Conquiz.Quiz
             {
                 Debug.LogWarning("No numeric question provided, cannot break tie!");
                 var noWinnerResult = SessionResult.CreateNoWinner(p1McqAnswer, p2McqAnswer);
+                yield return ShowFinalResultAndWait(noWinnerResult, mcqQuestion, null);
                 CompleteSession(noWinnerResult);
                 yield break;
             }
@@ -247,65 +273,108 @@ namespace Conquiz.Quiz
                 p1NumericAnswer, p2NumericAnswer,
                 numericQuestion);
 
+            // Show final result and wait for Continue
+            yield return ShowFinalResultAndWait(round2Result, mcqQuestion, numericQuestion);
             CompleteSession(round2Result);
         }
 
-        private string FormatMcqAnswer(QuizAnswerResult answer, McqQuestionData question)
+        private IEnumerator ShowFinalResultAndWait(
+            SessionResult result,
+            McqQuestionData mcqQuestion,
+            NumericQuestionData numericQuestion)
         {
-            if (answer.TimedOut)
-                return "Timed Out!";
+            if (quizUI == null) yield break;
 
-            string choice = question.Choices[answer.McqChoiceIndex];
-            string status = answer.IsCorrect ? "CORRECT" : "WRONG";
-            return $"{choice} ({status})";
-        }
+            // Determine display values
+            string playerAnswer;
+            string opponentAnswer;
+            float? playerError = null;
+            float? opponentError = null;
+            string correctAnswer;
+            string winnerName;
+            string decisionReason;
 
-        private string FormatNumericAnswer(QuizAnswerResult answer, NumericQuestionData question)
-        {
-            if (answer.TimedOut)
-                return "Timed Out!";
+            bool isNumericRound = result.DecidingRound == 2 && result.Player1NumericAnswer != null;
 
-            string exactText = answer.IsCorrect ? "EXACT!" : $"off by {answer.NumericDistance:F1}";
-            return $"{answer.NumericValue:F1} ({exactText}) in {answer.ResponseTimeSeconds:F1}s";
-        }
-
-        private string GetMcqOutcomeText(QuizAnswerResult p1, QuizAnswerResult p2)
-        {
-            if (p1.IsCorrect && !p2.IsCorrect)
-                return "YOU WIN THIS ROUND!";
-            if (!p1.IsCorrect && p2.IsCorrect)
-                return "OPPONENT WINS THIS ROUND!";
-            if (p1.IsCorrect && p2.IsCorrect)
-                return "TIE! Both correct - Tiebreaker needed!";
-            return "TIE! Both wrong - Tiebreaker needed!";
-        }
-
-        private string GetNumericOutcomeText(QuizAnswerResult p1, QuizAnswerResult p2, NumericQuestionData question)
-        {
-            if (p1.TimedOut && p2.TimedOut)
-                return "Both timed out - No winner!";
-            if (p1.TimedOut)
-                return "You timed out - OPPONENT WINS!";
-            if (p2.TimedOut)
-                return "Opponent timed out - YOU WIN!";
-
-            float p1Dist = p1.NumericDistance;
-            float p2Dist = p2.NumericDistance;
-
-            if (p1.IsCorrect && p2.IsCorrect)
+            if (isNumericRound && numericQuestion != null)
             {
-                if (p1.ResponseTimeSeconds < p2.ResponseTimeSeconds)
-                    return $"Both exact! You were faster ({p1.ResponseTimeSeconds:F2}s) - YOU WIN!";
-                else
-                    return $"Both exact! Opponent was faster - OPPONENT WINS!";
+                // Numeric round result
+                var p1 = result.Player1NumericAnswer;
+                var p2 = result.Player2NumericAnswer;
+
+                playerAnswer = p1.TimedOut ? "Timed Out" : $"{p1.NumericValue:F1}";
+                opponentAnswer = p2.TimedOut ? "Timed Out" : $"{p2.NumericValue:F1}";
+                playerError = p1.TimedOut ? null : (float?)p1.NumericDistance;
+                opponentError = p2.TimedOut ? null : (float?)p2.NumericDistance;
+                correctAnswer = $"{numericQuestion.CorrectValue:F1}";
+            }
+            else
+            {
+                // MCQ round result
+                var p1 = result.Player1McqAnswer;
+                var p2 = result.Player2McqAnswer;
+
+                playerAnswer = p1.TimedOut ? "Timed Out" : mcqQuestion.Choices[p1.McqChoiceIndex];
+                opponentAnswer = p2.TimedOut ? "Timed Out" : mcqQuestion.Choices[p2.McqChoiceIndex];
+                correctAnswer = mcqQuestion.CorrectAnswer;
             }
 
-            if (p1Dist < p2Dist)
-                return $"You were closer! ({p1Dist:F1} vs {p2Dist:F1}) - YOU WIN!";
-            if (p2Dist < p1Dist)
-                return $"Opponent was closer! ({p2Dist:F1} vs {p1Dist:F1}) - OPPONENT WINS!";
+            // Determine winner name
+            if (!result.HasWinner)
+            {
+                winnerName = "NO WINNER";
+            }
+            else if (result.WinnerPlayerId == player1Provider.PlayerId)
+            {
+                winnerName = "YOU WIN!";
+            }
+            else
+            {
+                winnerName = "OPPONENT WINS!";
+            }
 
-            return "Identical answers - checking time...";
+            // Decision reason
+            decisionReason = GetDecisionReasonText(result);
+
+            // Show the final result UI
+            quizUI.ShowFinalResult(
+                playerAnswer,
+                opponentAnswer,
+                playerError,
+                opponentError,
+                correctAnswer,
+                winnerName,
+                decisionReason
+            );
+
+            // Wait for Continue button
+            continueClicked = false;
+            Debug.Log("Waiting for Continue button...");
+
+            yield return quizUI.WaitForContinueCoroutine();
+
+            Debug.Log("Continue clicked, proceeding...");
+        }
+
+        private string GetDecisionReasonText(SessionResult result)
+        {
+            switch (result.DecisionType)
+            {
+                case SessionDecisionType.McqCorrectVsWrong:
+                    return "Correct answer beats wrong answer";
+                case SessionDecisionType.McqAnswerVsTimeout:
+                    return "Answer submitted beats timeout";
+                case SessionDecisionType.NumericCloser:
+                    return "Closer to the correct value";
+                case SessionDecisionType.NumericFasterExact:
+                    return "Same distance, faster response";
+                case SessionDecisionType.NumericAnswerVsTimeout:
+                    return "Answer submitted beats timeout";
+                case SessionDecisionType.NoWinner:
+                    return "Both players tied";
+                default:
+                    return "";
+            }
         }
 
         private SessionResult EvaluateMcqRound(QuizAnswerResult p1Answer, QuizAnswerResult p2Answer)
@@ -450,18 +519,11 @@ namespace Conquiz.Quiz
 
             if (quizUI != null)
             {
-                StartCoroutine(HideQuizDelayed(1f));
+                quizUI.HideQuiz();
             }
 
             Debug.Log(result.GetDebugBreakdown());
             OnSessionComplete?.Invoke(result);
-        }
-
-        private IEnumerator HideQuizDelayed(float delay)
-        {
-            yield return new WaitForSeconds(delay);
-            if (quizUI != null)
-                quizUI.HideQuiz();
         }
     }
 }

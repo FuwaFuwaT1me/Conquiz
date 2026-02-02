@@ -20,6 +20,7 @@ namespace Conquiz.UI
         public event Action<int, float> OnMcqAnswerSubmitted;
         public event Action<float, float> OnNumericAnswerSubmitted;
         public event Action OnTimerExpired;
+        public event Action OnContinueClicked;
 
         // =====================================================================
         // SERIALIZED FIELDS
@@ -63,6 +64,8 @@ namespace Conquiz.UI
         [SerializeField] private TextMeshProUGUI playerResultText;
         [SerializeField] private TextMeshProUGUI opponentResultText;
         [SerializeField] private TextMeshProUGUI roundOutcomeText;
+        [SerializeField] private Button continueButton;
+        [SerializeField] private TextMeshProUGUI correctAnswerText;
 
         [Header("Modern Colors")]
         [SerializeField] private Color primaryColor = new Color(0.2f, 0.6f, 1f);
@@ -82,6 +85,7 @@ namespace Conquiz.UI
         private float questionStartTime;
         private bool isTimerRunning;
         private bool hasAnswered;
+        private bool waitingForContinue;
 
         // =====================================================================
         // UNITY LIFECYCLE
@@ -89,33 +93,138 @@ namespace Conquiz.UI
 
         private void Awake()
         {
+            SetupButtonListeners();
+            InitializePlayerBadges();
+            FixupInputFieldViewport();
+            
+            // Hide ALL panels initially - quiz will be shown when session starts
+            ShowPanel(quizPanel, false);
+            ShowPanel(mcqPanel, false);
+            ShowPanel(numericPanel, false);
+            ShowPanel(resultsPanel, false);
+            
+            if (continueButton != null)
+                continueButton.gameObject.SetActive(false);
+                
+            Debug.Log("[QuizUI] Initialized - panels hidden until session starts");
+        }
+
+        /// <summary>
+        /// Fixes TMP_InputField viewport if not set in scene.
+        /// TMP_InputField needs textViewport set to work properly.
+        /// </summary>
+        private void FixupInputFieldViewport()
+        {
+            if (numericInputField == null) return;
+            
+            // Use reflection to check and set textViewport if null
+            var viewportField = typeof(TMP_InputField).GetField("m_TextViewport", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            
+            if (viewportField != null)
+            {
+                var viewport = viewportField.GetValue(numericInputField) as RectTransform;
+                if (viewport == null)
+                {
+                    // Find TextArea child which should be the viewport
+                    var textArea = numericInputField.textComponent?.transform;
+                    if (textArea != null)
+                    {
+                        viewportField.SetValue(numericInputField, textArea as RectTransform);
+                        Debug.Log("[QuizUI] Fixed TMP_InputField textViewport");
+                    }
+                }
+            }
+        }
+
+        private void SetupButtonListeners()
+        {
+            SetupMcqButtonListeners();
+            SetupNumericListeners();
+            SetupContinueListener();
+        }
+        
+        private void SetupMcqButtonListeners()
+        {
             for (int i = 0; i < mcqButtons.Length; i++)
             {
                 int index = i;
                 if (mcqButtons[i] != null)
                 {
+                    // Remove existing listeners first to avoid duplicates
+                    mcqButtons[i].onClick.RemoveAllListeners();
                     mcqButtons[i].onClick.AddListener(() => OnMcqButtonClicked(index));
                 }
             }
-
+        }
+        
+        private void SetupNumericListeners()
+        {
             if (numericSubmitButton != null)
             {
+                numericSubmitButton.onClick.RemoveAllListeners();
                 numericSubmitButton.onClick.AddListener(OnNumericSubmitClicked);
             }
 
             if (numericInputField != null)
             {
+                numericInputField.onSubmit.RemoveAllListeners();
                 numericInputField.onSubmit.AddListener(_ => OnNumericSubmitClicked());
             }
+        }
+        
+        private void SetupContinueListener()
+        {
+            if (continueButton != null)
+            {
+                continueButton.onClick.RemoveAllListeners();
+                continueButton.onClick.AddListener(OnContinueButtonClicked);
+            }
+        }
+        
+        /// <summary>
+        /// Re-initializes button listeners after buttons are assigned via reflection.
+        /// Call this from QuizSceneSetup after assigning mcqButtons.
+        /// </summary>
+        public void ReinitializeListeners()
+        {
+            Debug.Log("[QuizUI] Reinitializing button listeners...");
+            SetupButtonListeners();
+            int count = CountNonNullButtons();
+            Debug.Log($"[QuizUI] MCQ buttons wired: {count} / {mcqButtons.Length}");
+            
+            if (count == 0)
+            {
+                Debug.LogError("[QuizUI] ERROR: No MCQ buttons found! Button clicks will not work.");
+            }
+            
+            // Log button names for debugging
+            for (int i = 0; i < mcqButtons.Length; i++)
+            {
+                if (mcqButtons[i] != null)
+                {
+                    Debug.Log($"[QuizUI]   Button[{i}]: {mcqButtons[i].name}");
+                }
+            }
+        }
+        
+        private int CountNonNullButtons()
+        {
+            int count = 0;
+            for (int i = 0; i < mcqButtons.Length; i++)
+            {
+                if (mcqButtons[i] != null) count++;
+            }
+            return count;
+        }
 
-            // Initialize player status badges
+        private void InitializePlayerBadges()
+        {
             if (playerBadgeLeft != null)
                 playerBadgeLeft.Initialize("YOU", new Color(0.08f, 0.72f, 0.65f)); // Teal
 
             if (playerBadgeRight != null)
                 playerBadgeRight.Initialize("OPPONENT", new Color(0.98f, 0.45f, 0.09f)); // Orange
-
-            HideQuiz();
         }
 
         private void Update()
@@ -146,6 +255,9 @@ namespace Conquiz.UI
 
             if (numericInputField != null)
                 numericInputField.onSubmit.RemoveAllListeners();
+
+            if (continueButton != null)
+                continueButton.onClick.RemoveAllListeners();
         }
 
         // =====================================================================
@@ -156,11 +268,14 @@ namespace Conquiz.UI
         {
             if (question == null) return;
 
-            // ADD THIS:
+            // IMPORTANT: Enable quizPanel FIRST so Awake() runs before we show child panels
+            ShowPanel(quizPanel, true);
+
             ClearPlayerLabels();
 
             currentQuestion = question;
             hasAnswered = false;
+            waitingForContinue = false;
 
             if (questionText != null)
                 questionText.text = question.QuestionText;
@@ -171,10 +286,17 @@ namespace Conquiz.UI
             if (roundIndicatorText != null)
                 roundIndicatorText.text = roundText;
 
+            // Letter prefixes for answer options
+            char[] letters = { 'A', 'B', 'C', 'D' };
+            
             for (int i = 0; i < mcqButtons.Length && i < question.Choices.Length; i++)
             {
                 if (mcqButtonTexts[i] != null)
-                    mcqButtonTexts[i].text = question.Choices[i];
+                {
+                    // Add letter prefix (A, B, C, D) to each option
+                    string prefix = i < letters.Length ? $"{letters[i]}) " : "";
+                    mcqButtonTexts[i].text = prefix + question.Choices[i];
+                }
 
                 if (mcqButtons[i] != null)
                 {
@@ -190,10 +312,14 @@ namespace Conquiz.UI
             if (playerBadgeRight != null)
                 playerBadgeRight.SetState(BadgeState.Thinking);
 
+            // Show MCQ panel, hide others
             ShowPanel(mcqPanel, true);
             ShowPanel(numericPanel, false);
             ShowPanel(resultsPanel, false);
-            ShowPanel(quizPanel, true);
+
+            // Hide continue button during question
+            if (continueButton != null)
+                continueButton.gameObject.SetActive(false);
 
             StartTimer(customTimeLimit > 0f ? customTimeLimit : defaultTimeLimit);
         }
@@ -202,8 +328,12 @@ namespace Conquiz.UI
         {
             if (question == null) return;
 
+            // IMPORTANT: Enable quizPanel FIRST so Awake() runs before we show child panels
+            ShowPanel(quizPanel, true);
+
             currentQuestion = question;
             hasAnswered = false;
+            waitingForContinue = false;
 
             if (questionText != null)
                 questionText.text = question.QuestionText;
@@ -241,10 +371,14 @@ namespace Conquiz.UI
             if (playerBadgeRight != null)
                 playerBadgeRight.SetState(BadgeState.Thinking);
 
+            // Show Numeric panel, hide others
             ShowPanel(mcqPanel, false);
             ShowPanel(numericPanel, true);
             ShowPanel(resultsPanel, false);
-            ShowPanel(quizPanel, true);
+
+            // Hide continue button during question
+            if (continueButton != null)
+                continueButton.gameObject.SetActive(false);
 
             StartTimer(customTimeLimit > 0f ? customTimeLimit : defaultTimeLimit);
         }
@@ -326,6 +460,7 @@ namespace Conquiz.UI
             // Setup numeric question
             currentQuestion = numericQuestion;
             hasAnswered = false;
+            waitingForContinue = false;
 
             if (questionText != null)
                 questionText.text = numericQuestion.QuestionText;
@@ -425,6 +560,9 @@ namespace Conquiz.UI
             bool opponentCorrect,
             string outcomeMessage)
         {
+            // Ensure quizPanel is visible
+            ShowPanel(quizPanel, true);
+            
             ShowPanel(mcqPanel, false);
             ShowPanel(numericPanel, false);
             ShowPanel(resultsPanel, true);
@@ -448,6 +586,56 @@ namespace Conquiz.UI
         }
 
         /// <summary>
+        /// Shows the final session result with Continue button.
+        /// UI stays visible until Continue is clicked.
+        /// </summary>
+        public void ShowFinalResult(
+            string playerAnswer,
+            string opponentAnswer,
+            float? playerError,
+            float? opponentError,
+            string correctAnswer,
+            string winnerName,
+            string decisionReason)
+        {
+            // Ensure quizPanel is visible
+            ShowPanel(quizPanel, true);
+            
+            ShowPanel(mcqPanel, false);
+            ShowPanel(numericPanel, false);
+            ShowPanel(resultsPanel, true);
+
+            string playerText = playerError.HasValue
+                ? $"<b>YOU:</b> {playerAnswer} (error: {playerError.Value:F1})"
+                : $"<b>YOU:</b> {playerAnswer}";
+
+            string opponentText = opponentError.HasValue
+                ? $"<b>OPPONENT:</b> {opponentAnswer} (error: {opponentError.Value:F1})"
+                : $"<b>OPPONENT:</b> {opponentAnswer}";
+
+            if (playerResultText != null)
+                playerResultText.text = playerText;
+
+            if (opponentResultText != null)
+                opponentResultText.text = opponentText;
+
+            if (correctAnswerText != null)
+                correctAnswerText.text = $"Correct: {correctAnswer}";
+
+            if (roundOutcomeText != null)
+                roundOutcomeText.text = $"<size=130%><b>{winnerName}</b></size>\n{decisionReason}";
+
+            // Show Continue button
+            if (continueButton != null)
+            {
+                continueButton.gameObject.SetActive(true);
+                continueButton.interactable = true;
+            }
+
+            waitingForContinue = true;
+        }
+
+        /// <summary>
         /// Shows a simple feedback message.
         /// </summary>
         public void ShowFeedback(string message, bool isPositive)
@@ -459,9 +647,15 @@ namespace Conquiz.UI
             }
         }
 
+        /// <summary>
+        /// Returns true if the UI is waiting for Continue button click.
+        /// </summary>
+        public bool IsWaitingForContinue => waitingForContinue;
+
         public void HideQuiz()
         {
             isTimerRunning = false;
+            waitingForContinue = false;
             ShowPanel(quizPanel, false);
         }
 
@@ -590,6 +784,25 @@ namespace Conquiz.UI
             yield return new WaitForSeconds(0.5f);
         }
 
+        /// <summary>
+        /// Waits until Continue button is clicked. Use in coroutines.
+        /// </summary>
+        public IEnumerator WaitForContinueCoroutine()
+        {
+            waitingForContinue = true;
+
+            if (continueButton != null)
+            {
+                continueButton.gameObject.SetActive(true);
+                continueButton.interactable = true;
+            }
+
+            while (waitingForContinue)
+            {
+                yield return null;
+            }
+        }
+
         private string DetermineNumericOutcome(QuizAnswerResult player, QuizAnswerResult opponent)
         {
             if (player.TimedOut && opponent.TimedOut)
@@ -627,7 +840,9 @@ namespace Conquiz.UI
             timeRemaining = duration;
             questionStartTime = Time.time;
             isTimerRunning = true;
+            hasAnswered = false; // Reset answered state when starting new timer
             UpdateTimerDisplay();
+            Debug.Log($"[QuizUI] Timer started: {duration}s, isTimerRunning=true");
         }
 
         private void UpdateTimerDisplay()
@@ -656,13 +871,26 @@ namespace Conquiz.UI
 
         private void OnMcqButtonClicked(int index)
         {
-            if (hasAnswered || !isTimerRunning) return;
+            Debug.Log($"[QuizUI] MCQ Button {index} clicked! hasAnswered={hasAnswered}, isTimerRunning={isTimerRunning}");
+            
+            if (hasAnswered)
+            {
+                Debug.Log("[QuizUI] Ignoring click - already answered");
+                return;
+            }
+            
+            if (!isTimerRunning)
+            {
+                Debug.Log("[QuizUI] Ignoring click - timer not running (no active session?)");
+                return;
+            }
 
             hasAnswered = true;
             isTimerRunning = false;
             MarkPlayerAnswered();
 
             float responseTime = GetCurrentResponseTime();
+            Debug.Log($"[QuizUI] Player answered! Index={index}, ResponseTime={responseTime:F2}s");
 
             foreach (var btn in mcqButtons)
             {
@@ -700,6 +928,17 @@ namespace Conquiz.UI
                 numericSubmitButton.interactable = false;
 
             OnNumericAnswerSubmitted?.Invoke(value, responseTime);
+        }
+
+        private void OnContinueButtonClicked()
+        {
+            Debug.Log("[QuizUI] Continue button clicked");
+            waitingForContinue = false;
+
+            if (continueButton != null)
+                continueButton.gameObject.SetActive(false);
+
+            OnContinueClicked?.Invoke();
         }
 
         private void HandleTimerExpired()

@@ -239,12 +239,6 @@ namespace Conquiz.Quiz
             // Wait to show feedback
             yield return new WaitForSeconds(feedbackDelay);
 
-            // Hide quiz before callback
-            if (quizUI != null)
-            {
-                quizUI.HideQuiz();
-            }
-
             // Small frame delay to let UI settle
             yield return null;
 
